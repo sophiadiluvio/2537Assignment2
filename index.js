@@ -16,12 +16,11 @@ const expireTime = 60 * 60 * 1000;
 // Middleware to parse form data
 app.use(express.urlencoded({ extended: true }));
 
-// serve static files from public directory
 app.use(express.static('public'));
 
-// Set up view engine and views directory
+// set up view engine and views directory
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views')); // Make sure your EJS files are in a 'views' directory
+app.set('views', path.join(__dirname, 'views')); 
 
 // session stuff with MongoDB store
 app.use(
@@ -42,7 +41,7 @@ app.use(
   })
 );
 
-// Admin check and authorization middleware
+// admin check and authorization middleware
 function isAdmin(req) {
     if (req.session.user_type === 'admin') {
         return true;
@@ -81,7 +80,7 @@ database.connect()
 
 // home page route
 app.get("/", (req, res) => {
-  // If user is logged in, pass user object to template, otherwise pass null
+  // if user is logged in, pass user object to template, otherwise pass null
   const user = req.session.authenticated ? 
     {
       name: req.session.name,
