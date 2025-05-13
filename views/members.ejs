@@ -1,5 +1,5 @@
 <%- include('templates/header') %>
-<h2>Welcome to the Members Area, <%= user.name %>!</h2>
+<h2>Hello, <%= user.name %>!</h2>
 <div class="row mt-4">
   <% images.forEach(img => { %>
     <div class="col-md-4 mb-3">
@@ -12,6 +12,6 @@
     </div>
   <% }) %>
 </div>
-<a href="/" class="btn btn-secondary mt-3">Back to Home</a>
+<a href="/" class="btn btn-secondary mt-3">Home</a>
 <%- include('templates/footer') %>
 

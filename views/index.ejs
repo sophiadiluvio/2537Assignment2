@@ -1,17 +1,17 @@
 <%- include('templates/header') %>
 
-<% if (!user) { %>
-  <h1>Welcome!</h1>
-  <a href="/signup" class="btn btn-primary">Sign Up</a>
-  <a href="/login" class="btn btn-secondary">Log In</a>
-<% } else { %>
-  <h1>Hello, <%= user.name %>!</h1>
-  <a href="/members" class="btn btn-success">Go to Members Area</a>
-  <form action="/logout" method="GET" class="d-inline">
-    <button type="submit" class="btn btn-danger">Logout</button>
-  </form>
-<% } %>
+<div class="bg-primary-subtle text-dark min-vh-100 p-5">
+  <% if (!user) { %>
+    <h1>Welcome!</h1>
+    <a href="/signup" class="btn btn-primary">Sign Up</a>
+    <a href="/login" class="btn btn-secondary">Log In</a>
+  <% } else { %>
+    <h1>Hello, <%= user.name %>!</h1>
+    <a href="/members" class="btn btn-warning">Go to Members Area</a>
+    <form action="/logout" method="GET" class="d-inline">
+      <button type="submit" class="btn btn-danger">Logout</button>
+    </form>
+  <% } %>
+</div>
 
 <%- include('templates/footer') %>
-
-
