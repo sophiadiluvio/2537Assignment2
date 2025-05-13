@@ -1,9 +1,14 @@
 <%- include('templates/header') %>
-
-<h1>404 - Page Not Found</h1>
-<p>The page you're looking for does not exist.</p>
-<a href="/">Back to Home</a>
-
+<div class="container mt-5">
+  <div class="alert alert-danger">
+    <% if (typeof message !== 'undefined') { %>
+      <h2><%= message %></h2>
+    <% } else { %>
+      <h2>404 - Page Not Found</h2>
+      <p>The page you're looking for does not exist.</p>
+    <% } %>
+  </div>
+<a href="/" class="btn btn-primary mt-3">Back to Home</a>
+</div>
 <%- include('templates/footer') %>
-
 

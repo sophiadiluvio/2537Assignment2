@@ -5,6 +5,7 @@ const MongoStore = require("connect-mongo");
 const bcrypt = require('bcrypt');
 const Joi = require("joi");
 const { database } = require("./databaseConnections");
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,8 +19,9 @@ app.use(express.urlencoded({ extended: true }));
 // serve static files from public directory
 app.use(express.static('public'));
 
-// Set up view engine (if you're using one)
-app.set('view engine', 'ejs'); // Assuming you're using EJS
+// Set up view engine and views directory
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views')); // Make sure your EJS files are in a 'views' directory
 
 // session stuff with MongoDB store
 app.use(
@@ -51,7 +53,14 @@ function isAdmin(req) {
 function adminAuthorization(req, res, next) {
     if (!isAdmin(req)) {
         res.status(403);
-        res.send("Not Authorized"); // Changed from render to send since we may not have a view engine
+        res.render("404", { 
+            message: "Not Authorized - Admin access required", 
+            user: req.session.authenticated ? {
+                name: req.session.name,
+                email: req.session.email,
+                user_type: req.session.user_type
+            } : null 
+        });
         return;
     }
     else {
@@ -72,38 +81,24 @@ database.connect()
 
 // home page route
 app.get("/", (req, res) => {
-  if (!req.session.authenticated) {
-    // not logged in
-    res.send(`
-      <h1>Home Page</h1>
-      <a href="/signup">Sign up</a><br>
-      <a href="/login">Log in</a>
-    `);
-  } else {
-    // logged in
-    res.send(`
-      <h1>Hello, ${req.session.name}!</h1>
-      <a href="/members">Go to Members Area</a><br>
-      <a href="/logout">Logout</a>
-    `);
-  }
+  // If user is logged in, pass user object to template, otherwise pass null
+  const user = req.session.authenticated ? 
+    {
+      name: req.session.name,
+      email: req.session.email,
+      user_type: req.session.user_type
+    } : null;
+  
+  res.render("index", { user: user });
 });
 
 // signup page
 app.get("/signup", (req, res) => {
-  res.send(`
-    <h1>Create User</h1>
-    <form action="/signupSubmit" method="POST">
-      <input type="text" name="name" placeholder="name"><br>
-      <input type="email" name="email" placeholder="email"><br>
-      <input type="password" name="password" placeholder="password"><br>
-      <button type="submit">Submit</button>
-    </form>
-  `);
+  res.render("signup", { error: null });
 });
 
-// signup form stuff
-app.post('/signupSubmit', async (req, res) => {
+// signup form submission
+app.post('/signup', async (req, res) => {
     const name = req.body.name;
     const email = req.body.email;
     const password = req.body.password;
@@ -132,10 +127,7 @@ app.post('/signupSubmit', async (req, res) => {
           message = "Please provide a password.";
         }
         
-        res.send(`
-          <p>${message}</p>
-          <a href="/signup">Try again</a>
-        `);
+        res.render("signup", { error: message });
         return;
       }
     
@@ -158,24 +150,17 @@ app.post('/signupSubmit', async (req, res) => {
       res.redirect("/"); 
     } catch (error) {
       console.error("Error during signup:", error);
-      res.status(500).send("An error occurred during signup. Please try again.");
+      res.render("signup", { error: "An error occurred during signup. Please try again." });
     }
   });
 
 // login page
 app.get("/login", (req, res) => {
-  res.send(`
-    <h1>Login</h1>
-    <form action="/loginSubmit" method="POST">
-      <input type="email" name="email" placeholder="email"><br>
-      <input type="password" name="password" placeholder="password"><br>
-      <button type="submit">Login</button>
-    </form>
-  `);
+  res.render("login", { error: null });
 });
 
-// login form stuff
-app.post('/loginSubmit', async (req, res) => {
+// login form submission
+app.post('/login', async (req, res) => {
     const email = req.body.email;
     const password = req.body.password;
   
@@ -189,7 +174,7 @@ app.post('/loginSubmit', async (req, res) => {
       const validationResult = schema.validate({ email, password });
       if (validationResult.error != null) {
         console.log(validationResult.error);
-        res.redirect("/login");
+        res.render("login", { error: "Invalid email or password format." });
         return;
       }
     
@@ -197,10 +182,7 @@ app.post('/loginSubmit', async (req, res) => {
       const user = await userCollection.findOne({ email: email });
       
       if (!user) {
-        res.send(`
-          <p>User and password not found.</p>
-          <a href="/login">Try again</a>
-        `);
+        res.render("login", { error: "User and password not found." });
         return;
       }
       
@@ -215,24 +197,18 @@ app.post('/loginSubmit', async (req, res) => {
         req.session.user_type = user.user_type || "user";
         res.redirect("/");
       } else {
-        res.send(`
-          <p>User and password not found.</p>
-          <a href="/login">Try again</a>
-        `);
+        res.render("login", { error: "User and password not found." });
       }
     } catch (error) {
       console.error("Error during login:", error);
-      res.status(500).send("An error occurred during login. Please try again.");
+      res.render("login", { error: "An error occurred during login. Please try again." });
     }
   });
 
 // logout
-app.get('/logout', (req,res) => {
-	req.session.destroy();
-    var html = `
-    You are logged out.
-    `;
-    res.send(html);
+app.get('/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/');
 });
 
 // Admin page
@@ -240,28 +216,23 @@ app.get("/admin", adminAuthorization, async (req, res) => {
   try {
     const users = await userCollection.find().project({name: 1, email: 1, user_type: 1, _id: 1}).toArray();
     
-    let userList = '<h1>Admin Panel</h1><ul>';
-    users.forEach(user => {
-      userList += `
-        <li>
-          ${user.name} (${user.email}) - ${user.user_type || 'user'}
-          <form action="/promote" method="POST" style="display: inline;">
-            <input type="hidden" name="email" value="${user.email}">
-            <button type="submit">Promote to Admin</button>
-          </form>
-          <form action="/demote" method="POST" style="display: inline;">
-            <input type="hidden" name="email" value="${user.email}">
-            <button type="submit">Demote to User</button>
-          </form>
-        </li>
-      `;
-    });
-    userList += '</ul><a href="/">Back to Home</a>';
+    const user = {
+      name: req.session.name,
+      email: req.session.email,
+      user_type: req.session.user_type
+    };
     
-    res.send(userList);
+    res.render("admin", { users: users, user: user });
   } catch (error) {
     console.error("Error in admin page:", error);
-    res.status(500).send("An error occurred loading the admin page.");
+    res.render("404", { 
+      message: "An error occurred loading the admin page.",
+      user: req.session.authenticated ? {
+        name: req.session.name,
+        email: req.session.email,
+        user_type: req.session.user_type
+      } : null 
+    });
   }
 });
 
@@ -276,7 +247,14 @@ app.post("/promote", adminAuthorization, async (req, res) => {
     res.redirect("/admin");
   } catch (error) {
     console.error("Error promoting user:", error);
-    res.status(500).send("An error occurred while promoting the user.");
+    res.render("404", { 
+      message: "An error occurred while promoting the user.",
+      user: req.session.authenticated ? {
+        name: req.session.name,
+        email: req.session.email,
+        user_type: req.session.user_type
+      } : null 
+    });
   }
 });
 
@@ -286,7 +264,14 @@ app.post("/demote", adminAuthorization, async (req, res) => {
     const { email } = req.body;
 
     if (req.session.email === email) {
-      return res.send("You cannot demote yourself. <a href='/admin'>Back to Admin</a>");
+      return res.render("404", { 
+        message: "You cannot demote yourself.",
+        user: req.session.authenticated ? {
+          name: req.session.name,
+          email: req.session.email,
+          user_type: req.session.user_type
+        } : null 
+      });
     }
 
     await userCollection.updateOne(
@@ -296,7 +281,14 @@ app.post("/demote", adminAuthorization, async (req, res) => {
     res.redirect("/admin");
   } catch (error) {
     console.error("Error demoting user:", error);
-    res.status(500).send("An error occurred while demoting the user.");
+    res.render("404", { 
+      message: "An error occurred while demoting the user.",
+      user: req.session.authenticated ? {
+        name: req.session.name,
+        email: req.session.email,
+        user_type: req.session.user_type
+      } : null 
+    });
   }
 });
 
@@ -309,30 +301,30 @@ app.get("/members", (req, res) => {
     
     // array for images
     const images = [
-      "/images/banana.gif", 
-      "/images/spin.gif", 
-      "/images/huh.gif"
+      "banana.gif", 
+      "spin.gif", 
+      "huh.gif"
     ];
     
-    // picks a random image from the array
-    const randomIndex = Math.floor(Math.random() * images.length);
-    const imagePath = images[randomIndex];
+    const user = {
+      name: req.session.name,
+      email: req.session.email,
+      user_type: req.session.user_type
+    };
     
-    res.send(`
-      <h1>Hello, ${req.session.name}!</h1>
-      <img src="${imagePath}" style="max-width: 500px;" alt="Random image"><br>
-      <a href="/logout">Logout</a>
-    `);
+    res.render("members", { user: user, images: images });
   });
 
-// error 404 catch all
+// 404 error handler
 app.use((req, res) => {
-  res.status(404).send("Oh no! Page not found - 404");
+  res.status(404).render("404", { user: req.session.authenticated ? {
+    name: req.session.name,
+    email: req.session.email,
+    user_type: req.session.user_type
+  } : null });
 });
 
 // port listen
 app.listen(PORT, () => {
   console.log("Node application listening on port " + PORT);
 });
-
-

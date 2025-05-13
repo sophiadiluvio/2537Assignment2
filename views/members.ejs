@@ -1,13 +1,10 @@
 <%- include('templates/header') %>
-
 <h2>Welcome to the Members Area, <%= user.name %>!</h2>
-
 <div class="row mt-4">
-  <% const images = ["banana.jpg", "huh.jpg", "spin.jpg"]; %>
   <% images.forEach(img => { %>
     <div class="col-md-4 mb-3">
       <div class="card shadow-sm">
-        <img src="/<%= img %>" class="card-img-top" alt="<%= img %>">
+        <img src="/images/<%= img %>" class="card-img-top" alt="<%= img %>">
         <div class="card-body">
           <p class="card-text text-center"><%= img %></p>
         </div>
@@ -15,8 +12,6 @@
     </div>
   <% }) %>
 </div>
-
 <a href="/" class="btn btn-secondary mt-3">Back to Home</a>
-
 <%- include('templates/footer') %>
 
